@@ -51,18 +51,40 @@ $Ammendments | Where-Object { $_.Meta.Fields.Go -and -not $_.Meta.Fields.Done -a
 
     $_ | ConvertTo-Json -Depth 4
 
-    $MgSiteListItemLogParams = @{
+    $MgSiteListItemParams = @{
         SiteId     = $_.Meta.SiteId
         ListId     = $_.Meta.ListId
         ListItemId = $_.Meta.ListItemId
     }
 
-    $ADUserRequest = $_.Request.ADUser
+    $RequestADUser = $_.Request.ADUser
 
-    # ProxyAddresses
+    $Get = Get-ADUser -Filter ('UserPrincipalName -like "{0}"' -f $RequestADUser.UserPrincipalName) -ErrorAction SilentlyContinue
 
-    # Do
-    $ADUser = New-ADUser @ADUserRequest
-    $ADUser | Add-MgSiteListItemLog @MgSiteListItemLogParams
+    if (-not $Get) {
+
+        $NewADUser = New-ADUser @RequestADUser -ErrorAction SilentlyContinue -Verbose
+
+        $SetADUser = $NewADUser | Set-ADUser -ErrorAction SilentlyContinue -Verbose -Add @{
+            'proxyAddresses' = @(
+                'SMTP:{0}' -f $RequestADUser.UserPrincipalName
+                'SIP:{0}' -f $RequestADUser.UserPrincipalName
+            )
+        }
+
+        $ADUser, $SetADUser | Add-MgSiteListItemLog @MgSiteListItemParams
+
+        $UpdateMgSiteListItemParams = $MgSiteListItemParams
+        $UpdateMgSiteListItemParams.ErrorAction = 'Stop'
+        $UpdateMgSiteListItemParams.BodyParameter = @{
+            fields = @{
+                ad = $ADUser.ObjectGUID
+            }
+        }
+
+        $UpdateMgSiteListItem = Update-MgSiteListItem @UpdateMgSiteListItemParams -Verbose
+        $UpdateMgSiteListItem | Add-MgSiteListItemLog @MgSiteListItemParams
+
+    }
 
 }
