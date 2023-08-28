@@ -1,0 +1,16 @@
+{
+    "Ammendment": {
+        "Type": "MgUser|AdUser",
+        "DateTime": "yyyy-MM-ddThh:mm:ss", // sortable - Format s
+        "Action": "Add(|New|Create)|Update|Remove(|Delete)"
+    },
+    "Meta": {
+
+    },
+    "Request": {
+
+    },
+    "Answer": {
+
+    }
+}
