@@ -38,6 +38,7 @@ $Ammendments = Get-AmmendmentsFromMgSiteListItems
 
 
 # -----
+$Script:ErrorActionPreference = 'Stop'
 
 $Conventions = @{
     Actions = @{
@@ -48,8 +49,6 @@ $Conventions = @{
 }
 
 $Ammendments | Where-Object { $_.Meta.Fields.Go -and -not $_.Meta.Fields.Done -and $_.Ammendment.Type -like 'ADUser' -and $_.Ammendment.Action -in $Conventions.Actions.Add } | ForEach-Object {
-
-    $_ | ConvertTo-Json -Depth 4
 
     $MgSiteListItemParams = @{
         SiteId     = $_.Meta.SiteId
@@ -63,27 +62,34 @@ $Ammendments | Where-Object { $_.Meta.Fields.Go -and -not $_.Meta.Fields.Done -a
 
     if (-not $Get) {
 
-        $NewADUser = New-ADUser @RequestADUser -ErrorAction SilentlyContinue -Verbose
+        $NewADUser = New-ADUser @RequestADUser -PassThru
 
-        $SetADUser = $NewADUser | Set-ADUser -ErrorAction SilentlyContinue -Verbose -Add @{
+        # Enable
+        $NewADUser | Enable-ADAccount
+
+        # Add to Group
+        Get-ADGroup 'Azure Active Directory Connect' | Add-ADGroupMember -Members $NewADUser
+
+        # ProxyAddresses
+        $SetADUser = $NewADUser | Set-ADUser -ErrorAction SilentlyContinue -Verbose -PassThru -Add @{
             'proxyAddresses' = @(
                 'SMTP:{0}' -f $RequestADUser.UserPrincipalName
                 'SIP:{0}' -f $RequestADUser.UserPrincipalName
             )
         }
 
-        $ADUser, $SetADUser | Add-MgSiteListItemLog @MgSiteListItemParams
-
-        $UpdateMgSiteListItemParams = $MgSiteListItemParams
+        $UpdateMgSiteListItemParams = $MgSiteListItemParams.Clone()
         $UpdateMgSiteListItemParams.ErrorAction = 'Stop'
         $UpdateMgSiteListItemParams.BodyParameter = @{
             fields = @{
-                ad = $ADUser.ObjectGUID
+                ad = $NewADUser.ObjectGUID
             }
         }
 
         $UpdateMgSiteListItem = Update-MgSiteListItem @UpdateMgSiteListItemParams -Verbose
-        $UpdateMgSiteListItem | Add-MgSiteListItemLog @MgSiteListItemParams
+
+        # Log Once!
+        $NewADUser, $SetADUser, $UpdateMgSiteListItem | Add-MgSiteListItemLog @MgSiteListItemParams
 
     }
 

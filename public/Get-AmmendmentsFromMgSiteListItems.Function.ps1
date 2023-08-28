@@ -103,32 +103,38 @@ Function Get-AmmendmentsFromMgSiteListItems {
                 ADUser                          = [ordered]@{
 
                     #Id                = $_.Fields.AdditionalProperties.mg
-                    UserPrincipalName = $_.Fields.AdditionalProperties.UserPrincipalName
+                    UserPrincipalName    = $_.Fields.AdditionalProperties.UserPrincipalName
 
-                    DisplayName       = $_.Fields.AdditionalProperties.Title
-                    GivenName         = $_.Fields.AdditionalProperties.Vorname
-                    SurName           = $_.Fields.AdditionalProperties.Nachname
+                    # Title = List "Title" = DisplayName
+                    DisplayName          = $_.Fields.AdditionalProperties.Title
+                    Name                 = $_.Fields.AdditionalProperties.Title # Mg: DisplayName
+
+                    GivenName            = $_.Fields.AdditionalProperties.Vorname
+                    SurName              = $_.Fields.AdditionalProperties.Nachname
 
                     # Type ? UserType          = $_.Fields.AdditionalProperties.UserType
 
-                    EmailAddress      = $_.Fields.AdditionalProperties.Mail # Mg: Mail
-                    SamAccountName    = $_.Fields.AdditionalProperties.Mail -split '@' | Select-Object -First 1 # Mg: mailNickname
+                    EmailAddress         = $_.Fields.AdditionalProperties.Mail # Mg: Mail
+                    SamAccountName       = $_.Fields.AdditionalProperties.Mail -split '@' | Select-Object -First 1 # Mg: mailNickname
 
-                    Company           = $_.Fields.AdditionalProperties.CompanyName # Mg: CompanyName
-                    Department        = $_.Fields.AdditionalProperties.Department
-                    Title             = $_.Fields.AdditionalProperties.JobTitle # Mg: JobTitle
-                    StreetAddress     = $_.Fields.AdditionalProperties.StreetAddress
-                    PostalCode        = $_.Fields.AdditionalProperties.PostalCode
-                    City              = $_.Fields.AdditionalProperties.City
-                    State             = $_.Fields.AdditionalProperties.State
-                    Country           = $_.Fields.AdditionalProperties.Country
+                    Company              = $_.Fields.AdditionalProperties.CompanyName # Mg: CompanyName
+                    Department           = $_.Fields.AdditionalProperties.Department
+                    Title                = $_.Fields.AdditionalProperties.JobTitle # Mg: JobTitle
+                    StreetAddress        = $_.Fields.AdditionalProperties.StreetAddress
+                    PostalCode           = $_.Fields.AdditionalProperties.PostalCode
+                    City                 = $_.Fields.AdditionalProperties.City
+                    State                = $_.Fields.AdditionalProperties.State
+                    Country              = & {
+                        if ($_.Fields.AdditionalProperties.Country -match "Deutschland|Germany") { 'DE' }
+                    }
 
-                    OfficePhone       = $_.Fields.AdditionalProperties.BusinessPhoneSIP # Mg: businessPhones @()
+                    OfficePhone          = $_.Fields.AdditionalProperties.BusinessPhoneSIP # Mg: businessPhones @()
 
                     # UsageLocation     = 'DE'
                     # AccountEnabled    = $true
 
-                    AccountPassword   = Get-RandomPassword | ConvertTo-SecureString -AsPlainText -Force # Mg: PasswordProfile
+                    AccountPassword      = Get-RandomPassword | ConvertTo-SecureString -AsPlainText -Force # Mg: PasswordProfile
+                    PasswordNeverExpires = $true
 
                 } # /ADUser
 
