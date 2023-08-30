@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName="ExchangeOnlineManagement"; ModuleVersion="3.1.0" }
+#Requires -Modules @{ ModuleName="ExchangeOnlineManagement"; ModuleVersion="3.2.0" }
 
 if ($PSVersionTable.PSVersion.Major -ne "5") {
     try {

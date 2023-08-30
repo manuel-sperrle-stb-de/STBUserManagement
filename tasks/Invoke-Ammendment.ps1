@@ -1,4 +1,6 @@
-﻿Get-ChildItem "$PSScriptRoot/../public" -Recurse -Filter *.ps1 | ForEach-Object { . $_.FullName }
+﻿#Requires -Modules @{ ModuleName="ActiveDirectory"; ModuleVersion="1.0.1.0" }, @{ ModuleName="ADSync"; ModuleVersion="1.0.0.0" }, @{ ModuleName="Microsoft.Graph.Authentication"; ModuleVersion="2.4.0" }, @{ ModuleName="Microsoft.Graph.Users"; ModuleVersion="2.4.0" }
+
+Get-ChildItem "$PSScriptRoot/../public" -Recurse -Filter *.ps1 | ForEach-Object { . $_.FullName }
 . (Join-Path $PSScriptRoot 'Get-AmmendmentFromMgSiteListConfiguration.ps1')
 
 $LogFile = Join-Path $PSScriptRoot ('log\{0}.{1}.log' -f $MyInvocation.MyCommand.Name, ((Get-Date -Format s) -replace '[^\d]', $null) )
@@ -7,8 +9,7 @@ Start-Transcript $LogFile -Verbose
 
 try {
 
-
-    $SyncAzureADTrigger = $false
+    $AzureADConnectTrigger = $false
 
     # TBD : Filter for DateTime
     $AmmendmentFilter = Get-AmmendmentFromMgSiteListConfiguration | Where-Object { -not $_.Meta.Fields.Done -and $_.Meta.Fields.Go }
@@ -38,7 +39,7 @@ try {
                 $Message
                 $Log += $Message
                 #'Add-ADUser ...'
-                $SyncAzureADTrigger = $true
+                $AzureADConnectTrigger = $true
             }
 
             # TBD: Set-ADUser
@@ -57,9 +58,12 @@ try {
 
     }
 
-    # SyncAzureAD
-    if ($SyncAzureADTrigger) {
-        # TBD: Sync AD Connect!
+    # AzureADConnect
+    if ($AzureADConnectTrigger) {
+        'AzureADConnect triggered'
+
+        Start-ADSyncSyncCycle -PolicyType Delta
+        # TBD: AzureADConnect
     }
 
     # ForEach
