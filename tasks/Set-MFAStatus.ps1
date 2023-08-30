@@ -1,4 +1,4 @@
-#Requires -Modules @{ ModuleName = "MSOnline"; "ModuleVersion" = "1.1.183.66" }
+#Requires -Modules @{ ModuleName = "MSOnline"; ModuleVersion = "1.1.183.66" }
 
 if ($PSVersionTable.PSVersion.Major -ne "5") {
     try {
@@ -13,10 +13,10 @@ if ($PSVersionTable.PSVersion.Major -ne "5") {
     }
 }
 
-Try {
-    Get-MsolUser -MaxResults 1 -ErrorAction Stop | Out-Null
+try {
+    $null = Get-MsolUser -MaxResults 1 -ErrorAction Stop
 }
-Catch {
+catch {
     Connect-MsolService
 }
 

@@ -13,8 +13,12 @@ if ($PSVersionTable.PSVersion.Major -ne "5") {
     }
 }
 
-# ExchangeOnline
-Connect-ExchangeOnline
+try {
+    $null = Get-EXOMailbox
+}
+catch {
+    Connect-ExchangeOnline
+}
 
 $LogFile = Join-Path $PSScriptRoot ('log\{0}.{1}.log' -f $MyInvocation.MyCommand.Name, ((Get-Date -Format s) -replace '[^\d]', $null) )
 try { Stop-Transcript } catch {}

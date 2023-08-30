@@ -109,8 +109,9 @@ try {
         }
 
 
-        'MgUserAuthenticationEmailMethod'
-        if ($Request.MgUserAuthenticationEmailMethod -and $Ammendment.Ammendment.Action -notlike 'Remove') {
+        # MgUserAuthenticationEmailMethod
+        if ($Request.MgUserAuthenticationEmailMethod.EmailAddress -and $Ammendment.Ammendment.Action -notlike 'Remove') {
+            'MgUserAuthenticationEmailMethod'
 
             $MgUserAuthenticationEmailMethod = Get-MgUserAuthenticationEmailMethod -UserId $MgUser.Id -ErrorAction SilentlyContinue
 
@@ -131,9 +132,9 @@ try {
 
         }
 
-
-        'MgUserAuthenticationPhoneMethod'
-        if ($Request.MgUserAuthenticationPhoneMethod -and $Ammendment.Ammendment.Action -notlike 'Remove') {
+        # MgUserAuthenticationPhoneMethod
+        if ($Request.MgUserAuthenticationPhoneMethod.PhoneNumber -and $Ammendment.Ammendment.Action -notlike 'Remove') {
+            'MgUserAuthenticationPhoneMethod'
 
             $MgUserAuthenticationPhoneMethod = Get-MgUserAuthenticationPhoneMethod -UserId $MgUser.Id -ErrorAction SilentlyContinue
 
@@ -161,6 +162,14 @@ try {
         # Groups
 
         # PhoneAssignment
+        if ($Ammendment.Request.MgUser.businessPhones[0]) {
+            'PhoneAssignment'
+            $PhoneAssignmentParams = @{
+                Identity = $Ammendment.Request.MgUser.UserPrincipalName
+                TelephoneNumber = $Ammendment.Request.MgUser.businessPhones[0]
+            }
+            .\Set-PhoneAssignment.ps1 @PhoneAssignmentParams
+        }
 
         # MFAStatus / StrongAuthentificationRequirement
         # CalendarPermission
