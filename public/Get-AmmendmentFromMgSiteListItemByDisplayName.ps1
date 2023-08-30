@@ -1,27 +1,31 @@
 
-Function Get-AmmendmentsFromMgSiteListItems {
+Function Get-AmmendmentFromMgSiteListItemByDisplayName {
 
     [CmdletBinding()]
     param(
 
         [Parameter(Mandatory)]
         [object]
-        $MgSite,
+        $MgSiteDisplayName,
 
         [Parameter(Mandatory)]
         [object]
-        $MgSiteList
+        $MgSiteListDisplayName
 
     )
 
-    $GetMgSiteListItemSTBParams = @{
-        MgSite     = $MgSite
-        MgSiteList = $MgSiteList
+    $MgSite = Get-MgSiteByDisplayName -DisplayName $MgSiteDisplayName
+    $MgSiteList = Get-MgSiteListByDisplayName -MgSite $MgSite -DisplayName $MgSiteListDisplayName
+    
+    $GetMgSiteListItemParams = @{
+        SiteId         = $MgSite.Id
+        ListId         = $MgSiteList.Id
+        ErrorAction    = 'Stop'
+        Property       = '*'
+        ExpandProperty = 'fields'
     }
-
-    'Fetching Mg ...' | Write-Host
-    #Get-MgSiteListItemSTB @GetMgSiteListItemSTBParams | Select-Object -First 1 -ExpandProperty Fields | Select-Object -ExpandProperty AdditionalProperties | ConvertTo-Json -Depth 3 | Write-Host
-    Get-MgSiteListItemSTB @GetMgSiteListItemSTBParams | ForEach-Object {
+    #Get-MgSiteListItem @GetMgSiteListItemParams | Select-Object -First 1 -ExpandProperty Fields | Select-Object -ExpandProperty AdditionalProperties | ConvertTo-Json -Depth 3 | Write-Host
+    Get-MgSiteListItem @GetMgSiteListItemParams | ForEach-Object {
 
         $Ammendment = [ordered]@{
 
@@ -38,7 +42,7 @@ Function Get-AmmendmentsFromMgSiteListItems {
                 # "DateTime": "yyyy-MM-ddThh:mm:ss", // sortable - Format s
                 DateTime = Get-Date $_.Fields.AdditionalProperties.Datum -Format s
 
-                # "Action": "Add(|New|Create)|Update|Remove(|Delete)"
+                # "Action": "Add|Update|Remove"
                 Action   = $_.Fields.AdditionalProperties.'Ver_x00e4_nderung'
 
 
@@ -46,16 +50,11 @@ Function Get-AmmendmentsFromMgSiteListItems {
 
             Meta       = [ordered]@{
 
-                SiteId     = $_.SiteId
-                ListId     = $_.ListId
-                ListItemId = $_.ListItemId
+                SiteId     = $MgSite.Id
+                ListId     = $MgSiteList.Id
+                ListItemId = $_.Id
 
-                Fields     = [ordered]@{
-                    Title = $_.Fields.AdditionalProperties.Title
-                    Info  = $_.Fields.AdditionalProperties.Info
-                    Go    = $_.Fields.AdditionalProperties.Go
-                    Done  = $_.Fields.AdditionalProperties.Done
-                }
+                Fields     = $_.Fields.AdditionalProperties
 
             } # /Meta
 
