@@ -7,12 +7,17 @@ Start-Transcript $LogFile -Verbose
 
 try {
 
-    #TBD : DateTime
+
+    $SyncAzureADTrigger = $false
+
+    # TBD : Filter for DateTime
     $AmmendmentFilter = Get-AmmendmentFromMgSiteListConfiguration | Where-Object { -not $_.Meta.Fields.Done -and $_.Meta.Fields.Go }
 
-    ForEach ($Ammendment in $AmmendmentFilter) {
+    # ForEach AdUser
+    ForEach ($Ammendment in ( $AmmendmentFilter | Where-Object { $Ammendment.Ammendment.Target -like 'AdUser' } )) {
 
         [string[]]$Log = @()
+        $Ammendment.Ammendment, $Ammendment.Meta.Fields.UserPrincipalName | ConvertTo-Json
 
         $MgSiteListItem = @{
             SiteId      = $Ammendment.Meta.SiteId
@@ -21,10 +26,11 @@ try {
             ErrorAction = 'Stop'
         }
 
-        $Ammendment.Ammendment, $Ammendment.Meta.Fields.UserPrincipalName | ConvertTo-Json
+        # ShortHand
+        $Request = $Ammendment.Request
 
         # Add AdUser
-        if ($Ammendment.Ammendment.Action -like 'Add' -and $Ammendment.Ammendment.Target -like 'AdUser') {
+        if ($Ammendment.Ammendment.Action -like 'Add') {
 
             # Add-ADUser
             if (-not $Ammendment.Meta.Fields.ad) {
@@ -40,132 +46,120 @@ try {
         }
 
         # Update AdUser
-        if ($Ammendment.Ammendment.Action -like 'Update' -and $Ammendment.Ammendment.Type -like 'AdUser') {
+        if ($Ammendment.Ammendment.Action -like 'Update') {
         }
 
         # Remove AdUser
-        if ($Ammendment.Ammendment.Action -like 'Remove' -and $Ammendment.Ammendment.Type -like 'AdUser') {
+        if ($Ammendment.Ammendment.Action -like 'Remove') {
         }
 
-        $SyncAzureADTrigger = $false
-        if ($SyncAzureADTrigger) {
-            # TBD: Sync AD Connect!
+        #if ($Log) { $Log | Add-MgSiteListItemLog @MgSiteListItem }
+
+    }
+
+    # SyncAzureAD
+    if ($SyncAzureADTrigger) {
+        # TBD: Sync AD Connect!
+    }
+
+    # ForEach
+    ForEach ($Ammendment in $AmmendmentFilter) {
+
+        [string[]]$Log = @()
+        $Ammendment.Ammendment, $Ammendment.Meta.Fields.UserPrincipalName | ConvertTo-Json
+
+        $MgSiteListItem = @{
+            SiteId      = $Ammendment.Meta.SiteId
+            ListId      = $Ammendment.Meta.ListId
+            ListItemId  = $Ammendment.Meta.ListItemId
+            ErrorAction = 'Stop'
         }
 
-        # AdUser exists -> check field mg
-        if ($Ammendment.Ammendment.Action -like 'Add' -and $Ammendment.Ammendment.Type -like 'AdUser' -and $Ammendment.Meta.Fields.ad -and -not $Ammendment.Meta.Fields.mg) {
+        # ShortHand
+        $Request = $Ammendment.Request
 
-            $Message = 'Get-MgUser'
-            $Message
-            $Log += $Message
-
-            $MgUser = Get-MgUser -ConsistencyLevel eventual -Filter "startsWith(UserPrincipalName, '$($Ammendment.Request.MgUser.UserPrincipalName)')"
-
-            if ($MgUser) {
-
-                $Message = 'MgUser found -> Update Field: mg'
-                $Message
-                $Log += $Message
-
-                $UpdateMgSiteListItemParams = $MgSiteListItem.Clone()
-                $UpdateMgSiteListItemParams.BodyParameter = @{
-                    fields = @{
-                        mg = $MgUser.Id
-                    }
-                }
-                Update-MgSiteListItem @UpdateMgSiteListItemParams
-
-            }
-
-        }
-
-        # Up to here all should have a synced! MgUser Account
-        $MgUser = Get-MgUser -ConsistencyLevel eventual -Filter "startsWith(UserPrincipalName, '$($Ammendment.Request.MgUser.UserPrincipalName)')"
-
+        'Get-MgUser'
+        $MgUser = Get-MgUser -ConsistencyLevel eventual -Filter "startsWith(UserPrincipalName, '$($Ammendment.Request.MgUser.UserPrincipalName)')" -ErrorAction Stop
         if (-not $MgUser) {
             $Message = 'Critical Error: MgUser not found'
             $Message | Write-Error
             $Log += $Message
         }
 
-        # MgUser exists!
-        if ($MgUser -and $Ammendment.Ammendment.Action -like 'Add' -or $Ammendment.Ammendment.Action -like 'Update' -and $Ammendment.Meta.Fields.mg) {
 
-            $Request = $Ammendment.Request
+        'Update Field: mg'
+        if ($Ammendment.Meta.Fields.ad -and -not $Ammendment.Meta.Fields.mg -and $Ammendment.Ammendment.Action -notlike 'Remove') {
 
-            if ($Request.MgUserAuthenticationEmailMethod) {
-                'MgUserAuthenticationEmailMethod'
+            $Message = 'Update Field: mg'
+            $Message
+            $Log += $Message
 
-                $MgUserAuthenticationEmailMethod = Get-MgUserAuthenticationEmailMethod -UserId $MgUser.Id -ErrorAction SilentlyContinue
-
-                if ($MgUserAuthenticationEmailMethod) {
-
-                    $UpdateMgUserAuthenticationEmailMethodParams = @{
-                        EmailAuthenticationMethodId = $MgUserAuthenticationEmailMethod.Id
-                        UserId                      = $MgUser.Id
-                        BodyParameter               = $Request.MgUserAuthenticationEmailMethod
-                    }
-                    Update-MgUserAuthenticationEmailMethod @UpdateMgUserAuthenticationEmailMethodParams
-
+            $UpdateMgSiteListItemParams = $MgSiteListItem.Clone()
+            $UpdateMgSiteListItemParams.BodyParameter = @{
+                fields = @{
+                    mg = $MgUser.Id
                 }
-                else {
-
-                    $NewMgUserAuthenticationEmailMethodParams = @{
-                        UserId        = $MgUser.Id
-                        BodyParameter = $Request.MgUserAuthenticationEmailMethod
-                    }
-                    New-MgUserAuthenticationEmailMethod @NewMgUserAuthenticationEmailMethodParams
-
-                }
-
-                Get-MgUserAuthenticationEmailMethod -UserId $MgUser.Id
-
             }
-
-
-            if ($MgUser -and $Request.MgUserAuthenticationPhoneMethod) {
-                'MgUserAuthenticationPhoneMethod'
-
-                $MgUserAuthenticationPhoneMethod = Get-MgUserAuthenticationPhoneMethod -UserId $MgUser.Id -ErrorAction SilentlyContinue
-
-                if ($MgUserAuthenticationPhoneMethod) {
-
-                    $UpdateMgUserAuthenticationPhoneMethodParams = @{
-                        PhoneAuthenticationMethodId = $MgUserAuthenticationPhoneMethod.Id
-                        UserId                      = $MgUser.Id
-                        BodyParameter               = $Request.MgUserAuthenticationPhoneMethod
-                    }
-
-                    Update-MgUserAuthenticationPhoneMethod @UpdateMgUserAuthenticationPhoneMethodParams
-
-                }
-                else {
-
-                    $NewMgUserAuthenticationPhoneMethodParams = @{
-                        UserId        = $MgUser.Id
-                        BodyParameter = $Request.MgUserAuthenticationPhoneMethod
-                    }
-
-                    New-MgUserAuthenticationPhoneMethod @NewMgUserAuthenticationPhoneMethodParams
-
-                }
-
-                Get-MgUserAuthenticationPhoneMethod -UserId $MgUser.Id
-
-            }
-
-            # License
-
-            # Tags
-
-            # Groups
-
-            # PhoneAssignment
-
-            # StrongAuthentificationRequirement
-
+            Update-MgSiteListItem @UpdateMgSiteListItemParams
 
         }
+
+
+        'MgUserAuthenticationEmailMethod'
+        if ($Request.MgUserAuthenticationEmailMethod -and $Ammendment.Ammendment.Action -notlike 'Remove') {
+
+            $MgUserAuthenticationEmailMethod = Get-MgUserAuthenticationEmailMethod -UserId $MgUser.Id -ErrorAction SilentlyContinue
+
+            $MgUserAuthenticationEmailMethodParams = @{
+                UserId        = $MgUser.Id
+                BodyParameter = $Request.MgUserAuthenticationEmailMethod
+            }
+
+            if ($MgUserAuthenticationEmailMethod) {
+                $MgUserAuthenticationEmailMethodParams.EmailAuthenticationMethodId = $MgUserAuthenticationEmailMethod.Id
+                Update-MgUserAuthenticationEmailMethod @MgUserAuthenticationEmailMethodParams
+            }
+            else {
+                New-MgUserAuthenticationEmailMethod @MgUserAuthenticationEmailMethodParams
+            }
+
+            Get-MgUserAuthenticationEmailMethod -UserId $MgUser.Id
+
+        }
+
+
+        'MgUserAuthenticationPhoneMethod'
+        if ($Request.MgUserAuthenticationPhoneMethod -and $Ammendment.Ammendment.Action -notlike 'Remove') {
+
+            $MgUserAuthenticationPhoneMethod = Get-MgUserAuthenticationPhoneMethod -UserId $MgUser.Id -ErrorAction SilentlyContinue
+
+            $MgUserAuthenticationPhoneMethodParams = @{
+                UserId        = $MgUser.Id
+                BodyParameter = $Request.MgUserAuthenticationPhoneMethod
+            }
+
+            if ($MgUserAuthenticationPhoneMethod) {
+                $MgUserAuthenticationPhoneMethodParams.PhoneAuthenticationMethodId = $MgUserAuthenticationPhoneMethod.Id
+                Update-MgUserAuthenticationPhoneMethod @MgUserAuthenticationPhoneMethodParams
+            }
+            else {
+                New-MgUserAuthenticationPhoneMethod @MgUserAuthenticationPhoneMethodParams
+            }
+
+            Get-MgUserAuthenticationPhoneMethod -UserId $MgUser.Id
+
+        }
+
+        # License
+
+        # Tags
+
+        # Groups
+
+        # PhoneAssignment
+
+        # MFAStatus / StrongAuthentificationRequirement
+        # CalendarPermission
 
         #if ($Log) { $Log | Add-MgSiteListItemLog @MgSiteListItem }
 
