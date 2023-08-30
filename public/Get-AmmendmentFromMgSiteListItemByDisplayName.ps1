@@ -16,7 +16,7 @@ Function Get-AmmendmentFromMgSiteListItemByDisplayName {
 
     $MgSite = Get-MgSiteByDisplayName -DisplayName $MgSiteDisplayName
     $MgSiteList = Get-MgSiteListByDisplayName -MgSite $MgSite -DisplayName $MgSiteListDisplayName
-    
+
     $GetMgSiteListItemParams = @{
         SiteId         = $MgSite.Id
         ListId         = $MgSiteList.Id

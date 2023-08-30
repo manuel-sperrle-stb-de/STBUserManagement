@@ -2,3 +2,5 @@
 volumes
 */Configuration
 Paste+Copy.ps1
+*/log
+*.log
